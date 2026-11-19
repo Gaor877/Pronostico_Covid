@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pronósticos COVID-19 Colombia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: un tablero de resultados de un taller de econometría, sobrio y exacto
+   IDEA una etiqueta de farmacia: bloques planos de color, cifras grandes, letra limpia
+   PICTURE la serie acumulada con los pronósticos de los cinco métodos y la banda del 95 % de Holt
+   COLOUR blanco, negro, esmeralda #00a86b (recuperados y Holt), rosa #ffd6e0 (muertes); noche #04140d
+   TYPE Schibsted Grotesk 800 para cifras y títulos + Schibsted Grotesk para texto
+   LAYOUT título y tres bloques-etiqueta; gráfico ancho con controles; evaluación y pronóstico en dos columnas; componentes; en móvil todo apilado */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#04140d);--ink:light-dark(#111111,#e9f3ee);--mute:light-dark(#5b5f5c,#9fb3a9);--rule:light-dark(#d9d9d6,#1f3a2e);--panel:light-dark(#f6f6f4,#0a2018);--em:#00a86b;--emd:light-dark(#00875a,#3ed39a);--pink:light-dark(#ffd6e0,#4a1e2b);--pinkink:light-dark(#7a1532,#ffd6e0);--hw:light-dark(#c2185b,#ff7aa8);--mad:light-dark(#2f5fd0,#7fa4ff);--ses:light-dark(#9a7400,#e2c25a);--mas:light-dark(#8c8c8c,#7d8c85)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 "Schibsted Grotesk",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(24px,4vw,48px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-weight:800;font-size:clamp(30px,4.4vw,48px);line-height:1.05;letter-spacing:-.02em;margin:0 0 10px;text-wrap:balance;max-width:22ch}
+h2{font-weight:800;font-size:24px;line-height:1.15;letter-spacing:-.01em;margin:0 0 6px}
+p{margin:0 0 12px;max-width:70ch}
+.sub{color:var(--mute);margin:0}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:24px;border:2px solid var(--ink)}
+.kpi{padding:18px 20px;cursor:pointer;border:0;text-align:left;font:inherit;color:inherit;background:var(--bg);border-right:2px solid var(--ink);position:relative}
+.kpi:last-child{border-right:0}
+.kpi.k1{background:var(--pink);color:var(--pinkink)}
+.kpi.k2{background:var(--em);color:#04140d}
+.kpi[aria-pressed=true]{box-shadow:inset 0 -8px 0 var(--ink)}
+.kpi:focus-visible,.seg button:focus-visible,.chk input:focus-visible{outline:3px solid var(--emd);outline-offset:2px}
+.kpi .lab{font-weight:700;font-size:15px}
+.kpi .big{font-weight:800;font-size:clamp(28px,3.6vw,40px);line-height:1.05;letter-spacing:-.02em;margin:6px 0 2px;white-space:nowrap}
+.kpi .sm{font-size:14px}
+.kpi .sm b{white-space:nowrap}
+.panel{border-top:2px solid var(--ink);padding-top:18px}
+.ctrl{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;margin:4px 0 12px}
+.seg{display:inline-flex;border:1.5px solid var(--ink)}
+.seg button{font:inherit;font-size:15px;font-weight:500;min-height:40px;padding:6px 14px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--ink)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.chks{display:flex;flex-wrap:wrap;gap:6px 16px}
+.chk{display:inline-flex;align-items:center;gap:7px;font-size:15px;min-height:40px;cursor:pointer;white-space:nowrap}
+.chk input{width:18px;height:18px;margin:0;accent-color:var(--ink)}
+.sw{display:inline-block;width:22px;height:4px;border-radius:2px}
+.fig{position:relative;min-height:420px}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+svg text{font:13px "Schibsted Grotesk",system-ui,sans-serif;fill:var(--mute);paint-order:stroke;stroke:var(--bg);stroke-width:4px}
+.tip{position:absolute;pointer-events:none;background:var(--bg);border:1.5px solid var(--ink);padding:8px 10px;font-size:13px;line-height:1.45;min-width:190px;display:none;z-index:2}
+.tip b{font-weight:700}
+.tip div{display:flex;justify-content:space-between;gap:14px}
+.tip span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{font-size:14px;color:var(--mute);margin-top:8px}
+.cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,4vw,48px)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}
+th{font-weight:700;border-bottom:2px solid var(--ink);font-size:14px}
+th:first-child,td:first-child{text-align:left}
+td{font-variant-numeric:tabular-nums}
+tr.sel td{background:color-mix(in srgb,var(--em) 22%,transparent);font-weight:700}
+td.best{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:1px}
+.pinkband{background:var(--pink);color:var(--pinkink)}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:end;height:170px;margin:28px 0 26px;position:relative}
+.week .b{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative}
+.week .bar{width:70%;background:var(--pinkink);position:absolute;left:15%}
+.week .v{position:absolute;font-size:13px;font-weight:700;white-space:nowrap}
+.week .zero{position:absolute;left:0;right:0;top:50%;border-top:1.5px solid var(--pinkink)}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;text-align:center;font-size:14px;font-weight:700}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(11em,1fr));gap:14px;margin-top:4px}
+.fact .big{font-weight:800;font-size:clamp(26px,3vw,34px);line-height:1.05;letter-spacing:-.02em;white-space:nowrap}
+.fact .sm{font-size:14px}
+.end{border-top:2px solid var(--ink)}
+.end ul{margin:0;padding-left:20px;max-width:75ch}
+.end li{margin-bottom:8px}
+@media(max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.kpis{grid-template-columns:minmax(0,1fr)}.kpi{border-right:0;border-bottom:2px solid var(--ink)}.kpi:last-child{border-bottom:0}.fig{min-height:340px}table{font-size:13px}th,td{padding:6px 4px}.week{height:120px}}
+@media(prefers-reduced-motion:no-preference){.kpi,.seg button{transition:background .15s,box-shadow .15s}}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <h1 id="titulo">Holt proyecta 1,44 millones de casos de COVID-19 al 14 de diciembre de 2020</h1>
+    <p class="sub">Taller de pronósticos, Econometría I · Colombia, datos diarios del 6 de marzo al 2 de diciembre de 2020 · Pronóstico de los 12 días siguientes con cinco métodos</p>
+    <div class="kpis" id="kpis"></div>
+  </div>
+</header>
+
+<section class="band" style="padding-top:0">
+  <div class="wrap panel">
+    <h2 id="gtit">Total de casos: serie observada y pronósticos</h2>
+    <div class="ctrl">
+      <div class="seg" id="rango" role="group" aria-label="Periodo">
+        <button id="r-todo" aria-pressed="false" data-r="todo">Toda la serie</button>
+        <button id="r-60" aria-pressed="true" data-r="60">Últimos 60 días</button>
+      </div>
+      <div class="chks" id="chks"></div>
+    </div>
+    <div class="fig" id="fig"><svg id="svg" role="img" aria-label="Gráfico de la serie y sus pronósticos"></svg><div class="tip" id="tip"></div></div>
+    <p class="note">La banda verde es el intervalo de confianza del 95 % del método de Holt. Pase el cursor o el dedo sobre el gráfico para ver los valores de cada día.</p>
+  </div>
+</section>
+
+<section class="band" style="padding-top:0">
+  <div class="wrap cols">
+    <div class="panel">
+      <h2>Evaluación de los pronósticos</h2>
+      <p class="sub" id="evsub" style="margin-bottom:10px"></p>
+      <div class="scroll"><table id="tev"></table></div>
+      <p class="note">Errores de los pronósticos a un paso dentro de la muestra. Subrayado: el menor valor de cada columna. Resaltado: Holt, el método seleccionado.</p>
+      <p id="evtxt" style="margin-top:14px"></p>
+    </div>
+    <div class="panel">
+      <h2>Pronóstico con Holt</h2>
+      <p class="sub" style="margin-bottom:10px">3 al 14 de diciembre de 2020, con intervalo del 95 %</p>
+      <div class="scroll"><table id="tfc"></table></div>
+    </div>
+  </div>
+</section>
+
+<section class="band pinkband">
+  <div class="wrap cols">
+    <div>
+      <h2>La serie tiene tendencia, no estacionalidad</h2>
+      <p id="comptxt"></p>
+      <div class="facts" id="facts"></div>
+    </div>
+    <div>
+      <h2 style="font-size:20px">Componente estacional semanal</h2>
+      <p style="font-size:14px;margin:0" id="weeksub"></p>
+      <div class="week" id="week"></div>
+      <div class="days" id="days"></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap end" style="padding-top:20px">
+    <h2>Conclusiones</h2>
+    <ul>
+      <li>Las tres series son acumuladas, con tendencia creciente marcada y sin estacionalidad relevante: el componente semanal pesa menos del 0,03 % de su nivel.</li>
+      <li>Los métodos sin tendencia (promedio móvil simple y suavizamiento exponencial simple) se quedan planos en el último dato y sus errores son entre 5 y 13 veces los de Holt.</li>
+      <li>Holt, el método indicado para series con tendencia y sin estacionalidad, logra U de Theil cercanas a cero y queda empatado o por encima de Holt-Winters, que agrega un componente estacional que no existe.</li>
+      <li>Los pronósticos extrapolan la tendencia reciente: sirven para horizontes cortos como estos 12 días y deben actualizarse con cada dato nuevo.</li>
+    </ul>
+    <p class="note" style="margin-top:14px">Fuente: base covid.xlsx del curso. Cálculos en R con los paquetes zoo y forecast (script Pronostico_COVID_taller.R).</p>
+  </div>
+</section>
+
+<script>
+{
+const D = {"start":"2020-03-06","series":{"TOTAL_CASOS":[1,1,1,3,3,9,13,16,24,45,57,75,102,128,175,210,240,306,419,481,491,539,608,702,798,906,1065,1161,1267,1267,1485,1579,1780,2054,2223,2473,2709,2776,2852,2979,3105,3233,3439,3621,3792,3977,4149,4356,4561,4881,5142,5379,5597,5949,6211,6507,7006,7285,7668,7973,8613,8959,9456,10051,10495,11063,11613,12272,12930,13610,14216,14939,15574,16295,16935,17687,18330,19131,20177,21175,21981,23003,24104,25366,26688,28236,29383,30493,31833,33354,35120,36635,38027,39236,40719,42078,43682,45212,46858,48746,50939,53063,54931,57046,60217,63276,65633,68652,71183,73572,77113,80599,84442,88591,91769,95043,97846,102009,106110,109505,113389,117110,120281,124494,128638,133973,140776,145362,150445,154277,159898,165169,173206,182140,190700,197278,204005,211038,218428,226373,233541,240795,248976,257101,267385,276055,286020,295508,306181,317651,327850,334979,345714,357710,367196,376870,387481,397623,410453,422519,433805,445111,456689,468332,476660,489122,502178,513719,522138,533103,541147,551696,562128,572270,582022,590520,599914,607938,615168,624069,633339,641574,650062,658456,666521,671848,679513,686851,694664,702088,708914,716319,721892,728590,736377,743945,750471,758398,765076,770435,777537,784268,790823,798317,806038,813056,818206,824042,829679,835339,841531,848147,855052,862158,869808,877683,886179,894300,902747,911316,919083,924096,930159,936982,945354,952371,959572,965883,974139,981700,990270,998942,1007711,1015885,1025052,1033218,1041935,1053122,1063151,1074184,1083321,1093256,1099392,1108084,1117977,1127733,1136447,1143887,1149063,1156675,1165326,1174012,1182697,1191004,1198746,1205217,1211128,1218003,1225490,1233444,1240493,1248417,1254979,1262494,1270991,1280487,1290510,1299613,1308376,1316806,1324792,1334049],"TOTAL_MUERTES":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3,3,4,6,6,6,10,14,16,17,19,25,25,35,46,50,54,69,80,100,109,112,127,131,144,153,166,179,189,196,206,215,225,233,244,253,269,278,293,314,324,340,358,378,397,407,428,445,463,479,493,509,525,546,562,574,592,613,630,652,682,705,727,750,776,803,822,853,890,939,969,1009,1045,1087,1145,1205,1259,1308,1372,1433,1488,1545,1592,1667,1726,1801,1864,1950,2045,2126,2273,2310,2404,2491,2654,2811,2939,3106,3223,3334,3470,3641,3777,3942,4064,4210,4359,4527,4714,4925,5119,5307,5455,5625,5814,6029,6288,6516,6736,6929,7166,7373,7688,7975,8269,8525,8777,9074,9454,9810,10105,10330,10650,11017,11315,11624,11939,12250,12540,12842,13154,13475,13837,14145,14492,14810,15097,15372,15619,15979,16183,16568,16968,17316,17612,17889,18184,18468,18767,19064,19364,19663,20053,20348,20618,20888,21156,21512,21615,21817,22053,22275,22518,22734,22924,23123,23288,23478,23665,23850,24039,24208,24397,24570,24746,24924,25103,25296,25488,25641,25828,25998,26196,26397,26556,26712,26844,27017,27180,27331,27495,27660,27834,27985,28141,28306,28457,28616,28803,28970,29102,29272,29464,29636,29802,30000,30154,30348,30565,30753,30926,31135,31314,31515,31670,31847,32013,32209,32405,32595,32791,32974,33148,33312,33491,33669,33829,34031,34223,34381,34563,34761,34929,35104,35287,35479,35677,35860,36019,36214,36401,36584,36766,36934,37117],"TOTAL_RECUPERADOS":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6,6,8,8,10,10,10,15,31,39,55,55,55,88,88,100,123,174,197,214,270,319,354,452,550,634,691,711,804,804,870,927,1003,1067,1133,1210,1268,1411,1439,1551,1666,1722,1807,2013,2148,2300,2424,2569,2705,2825,2971,3133,3358,3460,3587,3751,3903,4050,4256,4431,4575,4718,5016,5265,5511,6111,6665,6913,7121,8543,9661,11142,12288,12921,13638,14382,15322,16427,16534,17333,17790,18715,19426,19822,19952,20366,21326,22680,23988,25499,27360,28968,30459,31671,33349,34937,36273,38280,39954,42073,43407,44531,45334,46563,47881,50372,51861,53634,56272,58800,61186,63451,65809,68806,71738,76164,80637,85836,91793,95804,98840,101613,107951,113864,119667,125037,131161,136690,142777,148695,154387,160708,167239,173727,180258,186317,192355,198495,204591,212688,221485,230427,239785,250494,261296,274420,287436,301525,312323,326298,339124,348940,359792,374030,384171,395470,407121,417793,429620,440574,450621,459475,469557,479568,489151,498221,507770,518229,529279,541462,552885,569479,582694,592820,599385,606925,607978,610078,615457,621521,627685,633199,640900,650801,662277,674961,687477,700112,711472,722536,734154,743653,751691,753953,757801,761674,766300,770812,773973,777658,780547,783131,789787,798396,806703,816667,826831,837001,847467,858294,867961,876731,884895,893712,901652,907379,915451,924044,932882,941874,950348,959433,969230,977804,985796,993877,1002202,1011166,1020263,1029082,1038082,1047017,1059237,1070423,1081691,1089340,1097576,1104956,1111867,1118902,1125184,1132393,1138581,1144923,1150932,1158897,1167857,1174959,1181753,1189499,1197204,1204452,1210489,1217647,1225635]},"fc":{"TOTAL_CASOS":{"MAS":[1325216,1325216,1325216,1325216,1325216,1325216,1325216,1325216,1325216,1325216,1325216,1325216],"MAD":[1342221,1350724,1359227,1367730,1376232,1384735,1393238,1401741,1410243,1418746,1427249,1435752],"SES":[1334048,1334048,1334048,1334048,1334048,1334048,1334048,1334048,1334048,1334048,1334048,1334048],"Holt":[1342828,1351608,1360387,1369167,1377946,1386726,1395505,1404285,1413064,1421844,1430623,1439403],"HW":[1343255,1352315,1361372,1370170,1378452,1387091,1396006,1405212,1414272,1423329,1432127,1440409],"Lo95":[1340985,1348387,1355676,1362832,1369855,1376753,1383531,1390195,1396751,1403202,1409555,1415811],"Hi95":[1344672,1354829,1365098,1375502,1386038,1396699,1407480,1418375,1429378,1440485,1451692,1462995]},"TOTAL_MUERTES":{"MAS":[36939,36939,36939,36939,36939,36939,36939,36939,36939,36939,36939,36939],"MAD":[37294,37472,37650,37827,38005,38183,38360,38538,38716,38893,39071,39249],"SES":[37117,37117,37117,37117,37117,37117,37117,37117,37117,37117,37117,37117],"Holt":[37297,37477,37657,37837,38016,38196,38376,38556,38736,38916,39096,39276],"HW":[37299,37487,37670,37856,38024,38202,38384,38566,38754,38938,39123,39292],"Lo95":[37240,37382,37523,37662,37799,37932,38064,38192,38319,38443,38565,38684],"Hi95":[37354,37571,37790,38011,38234,38460,38689,38920,39153,39389,39627,39867]},"TOTAL_RECUPERADOS":{"MAS":[1217924,1217924,1217924,1217924,1217924,1217924,1217924,1217924,1217924,1217924,1217924,1217924],"MAD":[1231881,1238860,1245839,1252818,1259796,1266775,1273754,1280733,1287711,1294690,1301669,1308648],"SES":[1225634,1225634,1225634,1225634,1225634,1225634,1225634,1225634,1225634,1225634,1225634,1225634],"Holt":[1233517,1241402,1249286,1257170,1265055,1272939,1280823,1288708,1296592,1304476,1312361,1320245],"HW":[1233310,1240609,1247874,1255284,1262704,1270072,1277417,1285091,1292390,1299655,1307065,1314486],"Lo95":[1231195,1236446,1241160,1245410,1249247,1252709,1255825,1258618,1261107,1263309,1265237,1266903],"Hi95":[1235839,1246357,1257412,1268930,1280862,1293169,1305822,1318798,1332077,1345644,1359485,1373587]}},"evals":{"TOTAL_CASOS":[{"Metodo":"Promedio móvil simple","RMSE":12514.048609,"MAE":9874.263941,"MAPE":8.558607,"THEIL_U":0.010393,"_row":"Promedio móvil simple"},{"Metodo":"Promedio móvil doble","RMSE":1285.691263,"MAE":838.73866,"MAPE":1.827192,"THEIL_U":0.001054,"_row":"Promedio móvil doble"},{"Metodo":"Suav. exponencial simple","RMSE":6266.959891,"MAE":4905.109847,"MAPE":7.981031,"THEIL_U":0.00521,"_row":"Suav. exponencial simple"},{"Metodo":"Holt","RMSE":933.661732,"MAE":578.961894,"MAPE":8.526177,"THEIL_U":0.000773,"_row":"Holt"},{"Metodo":"Holt-Winters aditivo","RMSE":878.042305,"MAE":591.467228,"MAPE":263.905327,"THEIL_U":0.000727,"_row":"Holt-Winters aditivo"}],"TOTAL_MUERTES":[{"Metodo":"Promedio móvil simple","RMSE":356.490053,"MAE":287.918288,"MAPE":7.690541,"THEIL_U":0.009686,"_row":"Promedio móvil simple"},{"Metodo":"Promedio móvil doble","RMSE":37.279207,"MAE":23.04064,"MAPE":2.308463,"THEIL_U":0.001005,"_row":"Promedio móvil doble"},{"Metodo":"Suav. exponencial simple","RMSE":179.618956,"MAE":144.438498,"MAPE":4.150339,"THEIL_U":0.004861,"_row":"Suav. exponencial simple"},{"Metodo":"Holt","RMSE":29.695206,"MAE":17.462871,"MAPE":2.023194,"THEIL_U":0.000801,"_row":"Holt"},{"Metodo":"Holt-Winters aditivo","RMSE":28.796522,"MAE":17.782765,"MAPE":5.611513,"THEIL_U":0.000776,"_row":"Holt-Winters aditivo"}],"TOTAL_RECUPERADOS":[{"Metodo":"Promedio móvil simple","RMSE":12884.800839,"MAE":9572.141176,"MAPE":9.152622,"THEIL_U":0.011902,"_row":"Promedio móvil simple"},{"Metodo":"Promedio móvil doble","RMSE":2030.055702,"MAE":1173.88061,"MAPE":2.888422,"THEIL_U":0.001857,"_row":"Promedio móvil doble"},{"Metodo":"Suav. exponencial simple","RMSE":6497.996387,"MAE":4806.889362,"MAPE":4.831014,"THEIL_U":0.005972,"_row":"Suav. exponencial simple"},{"Metodo":"Holt","RMSE":1214.455309,"MAE":672.545025,"MAPE":3.016815,"THEIL_U":0.001111,"_row":"Holt"},{"Metodo":"Holt-Winters aditivo","RMSE":1427.750254,"MAE":851.876519,"MAPE":46.602837,"THEIL_U":0.001306,"_row":"Holt-Winters aditivo"}]},"trend":{"TOTAL_CASOS":{"b_t":5302.924442,"t_t":47.473569,"R2l":0.893016,"b_t2":24.620938,"t_t2":46.053661,"R2q":0.987958},"TOTAL_MUERTES":{"b_t":156.504148,"t_t":51.637337,"R2l":0.908051,"b_t2":0.61255,"t_t2":28.117986,"R2q":0.976657},"TOTAL_RECUPERADOS":{"b_t":4732.755737,"t_t":37.514334,"R2l":0.839029,"b_t2":28.375882,"t_t2":57.233478,"R2q":0.987784}},"pars":{"TOTAL_CASOS":{"ses_a":0.9999,"holt_a":0.9999,"holt_b":0.432552,"aic_h":5255.256288,"aic_w":5235.84412},"TOTAL_MUERTES":{"ses_a":0.9999,"holt_a":0.999893,"holt_b":0.323301,"aic_h":3364.045371,"aic_w":3362.14702},"TOTAL_RECUPERADOS":{"ses_a":0.9999,"holt_a":0.997693,"holt_b":0.887907,"aic_h":5380.739401,"aic_w":5482.95034}},"seas":{"TOTAL_CASOS":420.352846,"TOTAL_MUERTES":9.914608,"TOTAL_RECUPERADOS":210.370032},"dec":{"TOTAL_CASOS":[208.7,415.3,361.8,-207.7,-420.4,-356.3,-1.4],"TOTAL_MUERTES":[3.8,5.4,9.9,-2.9,-6.2,-5.4,-4.6],"TOTAL_RECUPERADOS":[63.3,-63.3,-43.8,-17.1,-50.5,-99,210.4]}}
+;
+const V = ["TOTAL_CASOS","TOTAL_MUERTES","TOTAL_RECUPERADOS"];
+const NOM = {TOTAL_CASOS:"Total de casos",TOTAL_MUERTES:"Total de muertes",TOTAL_RECUPERADOS:"Total de recuperados"};
+const CORTO = {TOTAL_CASOS:"casos",TOTAL_MUERTES:"muertes",TOTAL_RECUPERADOS:"recuperados"};
+const M = [
+  {k:"Holt",n:"Holt",c:"--emd",w:3},
+  {k:"HW",n:"Holt-Winters aditivo",c:"--hw",w:2},
+  {k:"MAD",n:"Promedio móvil doble",c:"--mad",w:2},
+  {k:"SES",n:"Suav. exponencial simple",c:"--ses",w:2},
+  {k:"MAS",n:"Promedio móvil simple",c:"--mas",w:2}
+];
+const EVN = {"Promedio móvil simple":"MAS","Promedio móvil doble":"MAD","Suav. exponencial simple":"SES","Holt":"Holt","Holt-Winters aditivo":"HW"};
+const nf = (x,d=0) => new Intl.NumberFormat("es-CO",{minimumFractionDigits:d,maximumFractionDigits:d}).format(x);
+const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const t0 = new Date(D.start+"T12:00:00");
+const fecha = i => {const d=new Date(t0);d.setDate(d.getDate()+i);return d;};
+const fcorta = i => {const d=fecha(i);return d.getDate()+" "+MES[d.getMonth()];};
+const flarga = i => {const d=fecha(i);return d.getDate()+" de "+["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][d.getMonth()]+" de "+d.getFullYear();};
+const N = D.series.TOTAL_CASOS.length, H = 12;
+let st = {v:"TOTAL_CASOS", r:"60", on:{Holt:true,HW:true,MAD:true,SES:true,MAS:true}};
+try{const s=JSON.parse(localStorage.getItem("covid-pron")||"null");if(s&&V.includes(s.v))st=Object.assign(st,s);}catch(e){}
+const save = () => {try{localStorage.setItem("covid-pron",JSON.stringify(st));}catch(e){}};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+const kpis = document.getElementById("kpis");
+kpis.innerHTML = V.map((v,i) => {
+  const y=D.series[v], last=y[N-1], f=D.fc[v].Holt[H-1];
+  return `<button class="kpi k${i}" id="kpi-${i}" data-v="${v}" aria-pressed="false">
+    <div class="lab">${NOM[v]}</div>
+    <div class="big">${nf(f)}</div>
+    <div class="sm">al 14 dic (Holt) · 2 dic: <b>${nf(last)}</b> · <b>+${nf((f-last)/H)}</b> por día</div></button>`;}).join("");
+kpis.addEventListener("click", e => {const b=e.target.closest(".kpi");if(!b)return;st.v=b.dataset.v;save();render();});
+
+document.getElementById("chks").innerHTML = M.map(m =>
+  `<label class="chk"><input type="checkbox" id="m-${m.k}" data-k="${m.k}"><span class="sw" style="background:var(${m.c})"></span>${m.n}</label>`).join("");
+document.getElementById("chks").addEventListener("change", e => {const k=e.target.dataset.k;if(!k)return;st.on[k]=e.target.checked;save();draw();});
+document.getElementById("rango").addEventListener("click", e => {const b=e.target.closest("button");if(!b)return;st.r=b.dataset.r;save();render();});
+
+const svg = document.getElementById("svg"), fig = document.getElementById("fig"), tip = document.getElementById("tip");
+let geo = null;
+const nice = (lo,hi,n) => {const raw=(hi-lo)/n,p=Math.pow(10,Math.floor(Math.log10(raw))),m=[1,2,2.5,5,10].find(x=>x*p>=raw)*p;const a=Math.floor(lo/m)*m,out=[];for(let v=a;v<=hi+1e-9;v+=m)if(v>=lo-1e-9)out.push(v);return out;};
+const corto = x => Math.abs(x)>=1e6?nf(x/1e6,x%1e6?2:0)+" M":Math.abs(x)>=1e3?nf(x/1e3,0)+" mil":nf(x);
+
+function draw(){
+  const W=svg.clientWidth, Hh=svg.clientHeight; if(!W||!Hh)return;
+  const v=st.v, y=D.series[v], f=D.fc[v];
+  const i0 = st.r==="60" ? N-60 : 0;
+  const small = W<520;
+  const ml = small?58:74, mr = small?14:24, mt=16, mb=34;
+  const xs = i => ml + (i-i0)/(N-1+H-i0)*(W-ml-mr);
+  let lo=Infinity, hi=-Infinity;
+  for(let i=i0;i<N;i++){lo=Math.min(lo,y[i]);hi=Math.max(hi,y[i]);}
+  hi=Math.max(hi,...f.Hi95); lo=Math.min(lo,...f.Lo95);
+  M.forEach(m=>{if(st.on[m.k]){hi=Math.max(hi,...f[m.k]);lo=Math.min(lo,...f[m.k]);}});
+  if(i0===0) lo=0;
+  const pad=(hi-lo)*.04; hi+=pad; if(i0!==0) lo-=pad;
+  const ticks=nice(lo,hi,small?4:6);
+  const ys = x => mt + (1-(x-lo)/(hi-lo))*(Hh-mt-mb);
+  let s="";
+  ticks.forEach(t=>{s+=`<line x1="${ml}" x2="${W-mr}" y1="${ys(t)}" y2="${ys(t)}" stroke="var(--rule)"/><text x="${ml-8}" y="${ys(t)+4}" text-anchor="end">${small?corto(t):nf(t)}</text>`;});
+  const span=N+H-i0, step = st.r==="60" ? (small?20:10) : (small?60:30);
+  for(let i=i0;i<N+H;i++){ if((i-i0)%step===0) s+=`<text x="${xs(i)}" y="${Hh-10}" text-anchor="middle">${fcorta(i)}</text>`; }
+  s+=`<line x1="${ml}" x2="${W-mr}" y1="${Hh-mb}" y2="${Hh-mb}" stroke="var(--ink)" stroke-width="1.5"/>`;
+  const xc = xs(N-1);
+  s+=`<rect x="${xc}" y="${mt}" width="${W-mr-xc}" height="${Hh-mt-mb}" fill="var(--panel)"/>`;
+  s+=`<line x1="${xc}" x2="${xc}" y1="${mt}" y2="${Hh-mb}" stroke="var(--mute)" stroke-dasharray="3 4"/>`;
+  s+=`<text x="${W-mr-6}" y="${mt+16}" text-anchor="end">Pronóstico</text>`;
+  const band = [[N-1,y[N-1]],...f.Hi95.map((h,j)=>[N+j,h])].map(p=>`${xs(p[0])},${ys(p[1])}`).join(" ")+" "+[...f.Lo95.map((l,j)=>[N+j,l])].reverse().concat([[N-1,y[N-1]]]).map(p=>`${xs(p[0])},${ys(p[1])}`).join(" ");
+  if(st.on.Holt) s+=`<polygon points="${band}" fill="var(--em)" fill-opacity=".22"/>`;
+  let pth=""; for(let i=i0;i<N;i++) pth+=(i===i0?"M":"L")+xs(i).toFixed(1)+","+ys(y[i]).toFixed(1);
+  [...M].reverse().forEach(m=>{ if(!st.on[m.k])return;
+    const pts=[[N-1,y[N-1]],...f[m.k].map((val,j)=>[N+j,val])];
+    s+=`<path d="${pts.map((p,j)=>(j?"L":"M")+xs(p[0]).toFixed(1)+","+ys(p[1]).toFixed(1)).join("")}" fill="none" stroke="var(${m.c})" stroke-width="${m.w}" ${m.k==="Holt"?"":'stroke-dasharray="6 4"'}/>`; });
+  s+=`<path d="${pth}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  s+=`<circle cx="${xc}" cy="${ys(y[N-1])}" r="4" fill="var(--ink)"/>`;
+  s+=`<line id="hx" x1="0" x2="0" y1="${mt}" y2="${Hh-mb}" stroke="var(--ink)" stroke-width="1" opacity="0"/>`;
+  svg.innerHTML=s;
+  geo={xs,i0,ml,mr,W};
+}
+const ro = new ResizeObserver(draw); ro.observe(svg);
+
+function hover(cx){
+  if(!geo)return; const r=svg.getBoundingClientRect(); const x=cx-r.left;
+  const {i0,ml,mr,W}=geo; let i=Math.round(i0+(x-ml)/(W-ml-mr)*(N-1+H-i0)); i=Math.max(i0,Math.min(N+H-1,i));
+  const v=st.v, y=D.series[v], f=D.fc[v];
+  let h=`<b>${flarga(i)}</b>`;
+  if(i<N) h+=`<div><span>Observado</span><span>${nf(y[i])}</span></div>`;
+  else { const j=i-N; M.forEach(m=>{if(st.on[m.k])h+=`<div><span><i class="dot" style="background:var(${m.c})"></i>${m.n}</span><span>${nf(f[m.k][j])}</span></div>`;});
+    h+=`<div><span>IC 95 % Holt</span><span>${nf(f.Lo95[j])} – ${nf(f.Hi95[j])}</span></div>`; }
+  tip.innerHTML=h; tip.style.display="block";
+  const hx=document.getElementById("hx"); const px=geo.xs(i); hx.setAttribute("x1",px);hx.setAttribute("x2",px);hx.setAttribute("opacity",".5");
+  const tw=tip.offsetWidth, fw=fig.clientWidth; let left=px+14; if(left+tw>fw) left=px-tw-14; tip.style.left=Math.max(0,left)+"px"; tip.style.top="18px";
+}
+svg.addEventListener("pointermove", e=>hover(e.clientX));
+svg.addEventListener("pointerdown", e=>hover(e.clientX));
+svg.addEventListener("pointerleave", ()=>{tip.style.display="none";const hx=document.getElementById("hx");if(hx)hx.setAttribute("opacity","0");});
+
+function tables(){
+  const v=st.v, ev=D.evals[v], f=D.fc[v], y=D.series[v];
+  const cols=["RMSE","MAE","MAPE","THEIL_U"];
+  const best={}; cols.forEach(c=>best[c]=Math.min(...ev.map(r=>r[c])));
+  const mcol=k=>M.find(m=>m.k===k).c;
+  document.getElementById("evsub").textContent=NOM[v]+": cinco métodos comparados";
+  document.getElementById("tev").innerHTML=`<thead><tr><th>Método</th><th>RMSE</th><th>MAE</th><th>MAPE</th><th>U de Theil</th></tr></thead><tbody>`+
+    ev.map(r=>{const k=EVN[r.Metodo];return `<tr class="${k==="Holt"?"sel":""}"><td><i class="dot" style="background:var(${mcol(k)})"></i>${r.Metodo}</td>`+
+      cols.map(c=>`<td class="${r[c]===best[c]?"best":""}">${c==="MAPE"?nf(r[c],2)+" %":c==="THEIL_U"?nf(r[c],4):nf(r[c],1)}</td>`).join("")+`</tr>`;}).join("")+`</tbody>`;
+  const g=n=>ev.find(r=>r.Metodo===n);
+  const h=g("Holt"), mas=g("Promedio móvil simple"), ses=g("Suav. exponencial simple"), hw=g("Holt-Winters aditivo");
+  const ratio=Math.min(mas.RMSE,ses.RMSE)/h.RMSE, ratio2=Math.max(mas.RMSE,ses.RMSE)/h.RMSE;
+  const p=D.pars[v];
+  document.getElementById("evtxt").innerHTML=`Los métodos sin tendencia tienen errores entre <b>${nf(ratio,0)} y ${nf(ratio2,0)} veces</b> los de Holt. `+
+    (hw.RMSE<h.RMSE?`Holt-Winters reduce el RMSE apenas de ${nf(h.RMSE,0)} a ${nf(hw.RMSE,0)}, con un MAPE de ${nf(hw.MAPE,1)} %: la mejora no justifica un componente estacional que no existe. `:
+      `Holt supera a Holt-Winters (RMSE de ${nf(h.RMSE,0)} frente a ${nf(hw.RMSE,0)}): agregar estacionalidad empeora el ajuste. `)+
+    `Parámetros de Holt: α = ${nf(p.holt_a,4)}, β = ${nf(p.holt_b,4)}.`;
+  document.getElementById("tfc").innerHTML=`<thead><tr><th>Fecha</th><th>Pronóstico</th><th>Límite inferior</th><th>Límite superior</th></tr></thead><tbody>`+
+    f.Holt.map((val,j)=>`<tr><td>${fcorta(N+j)}</td><td><b>${nf(val)}</b></td><td>${nf(f.Lo95[j])}</td><td>${nf(f.Hi95[j])}</td></tr>`).join("")+`</tbody>`;
+}
+
+function comps(){
+  const v=st.v, y=D.series[v], tr=D.trend[v], amp=D.seas[v], lvl=y[N-1];
+  document.getElementById("comptxt").innerHTML=`En la regresión sobre el tiempo, el coeficiente de t es positivo y muy significativo, y la forma cuadrática explica casi toda la variación. La descomposición aditiva con periodo de 7 días deja un componente estacional que oscila apenas ± ${nf(amp,amp<100?1:0)} ${CORTO[v]}, frente a un nivel de ${nf(lvl)}.`;
+  document.getElementById("facts").innerHTML=[
+    [nf(tr.b_t,tr.b_t<1000?1:0),`${CORTO[v]} más por día (tendencia lineal, t = ${nf(tr.t_t,1)})`],
+    [nf(tr.R2q,3),"R² de la tendencia cuadrática"],
+    [nf(100*amp/lvl,3)+" %","peso de la estacionalidad sobre el nivel"]
+  ].map(a=>`<div class="fact"><div class="big">${a[0]}</div><div class="sm">${a[1]}</div></div>`).join("");
+  const fg=D.dec[v], mx=Math.max(...fg.map(Math.abs));
+  const dias=[]; for(let k=0;k<7;k++){dias.push(["dom","lun","mar","mié","jue","vie","sáb"][fecha(k).getDay()]);}
+  document.getElementById("weeksub").textContent=`Desviación promedio de cada día de la semana, en ${CORTO[v]}. A escala del nivel de la serie, estas barras serían invisibles.`;
+  document.getElementById("week").innerHTML=`<div class="zero"></div>`+fg.map(x=>{const hpc=Math.abs(x)/mx*45;const top=x>=0?50-hpc:50;
+    return `<div class="b"><div class="bar" style="top:${top}%;height:${hpc}%"></div><div class="v" style="${x>=0?`bottom:${50+hpc}%`:`top:${50+hpc}%`}">${x>0?"+":""}${nf(x,Math.abs(x)<100?1:0)}</div></div>`;}).join("");
+  document.getElementById("days").innerHTML=dias.map(d=>`<div>${d}</div>`).join("");
+}
+
+function render(){
+  const v=st.v;
+  V.forEach((x,i)=>document.getElementById("kpi-"+i).setAttribute("aria-pressed",x===v));
+  document.querySelectorAll("#rango button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.r===st.r));
+  M.forEach(m=>document.getElementById("m-"+m.k).checked=!!st.on[m.k]);
+  const f=D.fc[v].Holt[H-1];
+  document.getElementById("titulo").textContent = v==="TOTAL_CASOS" ? `Holt proyecta ${nf(f/1e6,2)} millones de casos de COVID-19 al 14 de diciembre de 2020`
+    : v==="TOTAL_MUERTES" ? `Holt proyecta ${nf(f)} muertes por COVID-19 al 14 de diciembre de 2020` : `Holt proyecta ${nf(f/1e6,2)} millones de recuperados de COVID-19 al 14 de diciembre de 2020`;
+  document.getElementById("gtit").textContent=NOM[v]+": serie observada y pronósticos";
+  draw(); tables(); comps();
+}
+render();
+}
+</script>
+</body>
+</html>
